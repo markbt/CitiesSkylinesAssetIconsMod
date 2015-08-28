@@ -47,5 +47,11 @@
     <Compile Include="IconModifier.cs" />
     <Compile Include="Identity.cs" />
   </ItemGroup>
+  <ItemGroup>
+    <Folder Include="Assets\" />
+  </ItemGroup>
+  <ItemGroup>
+    <EmbeddedResource Include="Assets\SelectFilter.png" />
+  </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
 </Project>
