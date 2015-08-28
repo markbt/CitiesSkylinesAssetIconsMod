@@ -5,11 +5,11 @@ using System.Runtime.CompilerServices;
 // Change them to the values specific to your project.
 
 [assembly: AssemblyTitle("AssetIcons")]
-[assembly: AssemblyDescription("")]
+[assembly: AssemblyDescription("Improved Asset Icons")]
 [assembly: AssemblyConfiguration("")]
 [assembly: AssemblyCompany("")]
 [assembly: AssemblyProduct("")]
-[assembly: AssemblyCopyright("Mark")]
+[assembly: AssemblyCopyright("Mark Thomas <markbt@efaref.net>")]
 [assembly: AssemblyTrademark("")]
 [assembly: AssemblyCulture("")]
 
