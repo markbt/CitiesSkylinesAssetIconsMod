@@ -77,17 +77,25 @@ namespace AssetIcons
                             var focusedSpriteInfo = uiButton.atlas[uiButton.focusedFgSprite];
                             if (focusedSpriteInfo != null && focusedSpriteInfo.texture != null)
                             {
-                                Color32[] focusedPixels = focusedSpriteInfo.texture.GetPixels32();
-                                // The default atlas generator creates ugly dark blue focused icons
-                                // by removing everything from the red and green channel.  Detect these
-                                // by adding up the amount of red and green in the image.
                                 long nonBlueCount = 0;
-                                foreach (Color32 pixel in focusedPixels)
+                                try
                                 {
-                                    if (pixel.a > 32)
+                                    Color32[] focusedPixels = focusedSpriteInfo.texture.GetPixels32();
+                                    // The default atlas generator creates ugly dark blue focused icons
+                                    // by removing everything from the red and green channel.  Detect these
+                                    // by adding up the amount of red and green in the image.
+                                    foreach (Color32 pixel in focusedPixels)
                                     {
-                                        nonBlueCount += pixel.r + pixel.g;
+                                        if (pixel.a > 32)
+                                        {
+                                            nonBlueCount += pixel.r + pixel.g;
+                                        }
                                     }
+                                }
+                                catch (Exception)
+                                {
+                                    Debug.Log(String.Format("Failed to patch texture for {0}, skipping.", info.name));
+                                    continue;
                                 }
 
                                 if (nonBlueCount < 10000)
