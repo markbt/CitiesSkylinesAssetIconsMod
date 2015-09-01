@@ -64,56 +64,57 @@ namespace AssetIcons
                 Texture2D tooltipTexture = null;
                 string packageName = info.name.Split('.')[0];
 
+                UIButton uiButton = null;
+                GameObject gameObject = GameObject.Find(info.name);
+                if (gameObject != null)
+                {
+                    uiButton = gameObject.GetComponent<UIButton>();
+                }
+
                 if (!string.IsNullOrEmpty(info.m_Thumbnail))
                 {
                     // This item has a thumbnail, check if it's a generated one.
-                    GameObject gameObject = GameObject.Find(info.name);
-                    if (gameObject != null)
+                    if (uiButton != null && uiButton.atlas != null)
                     {
-                        UIButton uiButton = gameObject.GetComponent<UIButton>();
-
-                        if (uiButton != null && uiButton.atlas != null)
+                        var focusedSpriteInfo = uiButton.atlas[uiButton.focusedFgSprite];
+                        if (focusedSpriteInfo != null && focusedSpriteInfo.texture != null)
                         {
-                            var focusedSpriteInfo = uiButton.atlas[uiButton.focusedFgSprite];
-                            if (focusedSpriteInfo != null && focusedSpriteInfo.texture != null)
+                            long nonBlueCount = 0;
+                            try
                             {
-                                long nonBlueCount = 0;
-                                try
+                                Color32[] focusedPixels = focusedSpriteInfo.texture.GetPixels32();
+                                // The default atlas generator creates ugly dark blue focused icons
+                                // by removing everything from the red and green channel.  Detect these
+                                // by adding up the amount of red and green in the image.
+                                foreach (Color32 pixel in focusedPixels)
                                 {
-                                    Color32[] focusedPixels = focusedSpriteInfo.texture.GetPixels32();
-                                    // The default atlas generator creates ugly dark blue focused icons
-                                    // by removing everything from the red and green channel.  Detect these
-                                    // by adding up the amount of red and green in the image.
-                                    foreach (Color32 pixel in focusedPixels)
+                                    if (pixel.a > 32)
                                     {
-                                        if (pixel.a > 32)
-                                        {
-                                            nonBlueCount += pixel.r + pixel.g;
-                                        }
+                                        nonBlueCount += pixel.r + pixel.g;
                                     }
                                 }
-                                catch (Exception)
-                                {
-                                    Debug.Log(String.Format("Failed to patch texture for {0}, skipping.", info.name));
-                                    continue;
-                                }
+                            }
+                            catch (Exception)
+                            {
+                                Debug.Log(String.Format("Failed to patch texture for {0}, skipping.", info.name));
+                                continue;
+                            }
 
-                                if (nonBlueCount < 10000)
+                            if (nonBlueCount < 10000)
+                            {
+                                // This is a generated atlas.  Replace the focused icon by generating
+                                // a new atlas.  Include the tooltip if there is one.
+                                var thumbnailSpriteInfo = uiButton.atlas[uiButton.normalFgSprite];
+                                if (thumbnailSpriteInfo != null && thumbnailSpriteInfo.texture != null)
                                 {
-                                    // This is a generated atlas.  Replace the focused icon by generating
-                                    // a new atlas.  Include the tooltip if there is one.
-                                    var thumbnailSpriteInfo = uiButton.atlas[uiButton.normalFgSprite];
-                                    if (thumbnailSpriteInfo != null && thumbnailSpriteInfo.texture != null)
-                                    {
-                                        thumbnailTexture = thumbnailSpriteInfo.texture;
-                                        thumbnailTexture.name = info.name + "Icon";
-                                    }
-                                    var tooltipSpriteInfo = uiButton.atlas["tooltip"];
-                                    if (tooltipSpriteInfo != null && thumbnailSpriteInfo.texture != null)
-                                    {
-                                        tooltipTexture = tooltipSpriteInfo.texture;
-                                        tooltipTexture.name = "tooltip";
-                                    }
+                                    thumbnailTexture = thumbnailSpriteInfo.texture;
+                                    thumbnailTexture.name = info.name + "Icon";
+                                }
+                                var tooltipSpriteInfo = uiButton.atlas["tooltip"];
+                                if (tooltipSpriteInfo != null && thumbnailSpriteInfo.texture != null)
+                                {
+                                    tooltipTexture = tooltipSpriteInfo.texture;
+                                    tooltipTexture.name = info.name;
                                 }
                             }
                         }
@@ -199,23 +200,23 @@ namespace AssetIcons
                 if (thumbnailTexture != null)
                 {
                     // Store the thumbnail atlas and icon names on the uiButton for this building.
-                    GameObject gameObject = GameObject.Find(info.name);
-                    if (gameObject != null)
+                    if (uiButton != null)
                     {
-                        UIButton uiButton = gameObject.GetComponent<UIButton>();
+                        uiButton.atlas = atlas;
 
-                        if (uiButton != null)
-                        {
-                            uiButton.atlas = atlas;
-
-                            string baseIconName = info.name + "Icon";
-                            uiButton.normalFgSprite = baseIconName;
-                            uiButton.focusedFgSprite = baseIconName + "Focused";
-                            uiButton.hoveredFgSprite = baseIconName + "Hovered";
-                            uiButton.pressedFgSprite = baseIconName + "Pressed";
-                            uiButton.disabledFgSprite = baseIconName + "Disabled";
-                        }
+                        string baseIconName = info.name + "Icon";
+                        uiButton.normalFgSprite = baseIconName;
+                        uiButton.focusedFgSprite = baseIconName + "Focused";
+                        uiButton.hoveredFgSprite = baseIconName + "Hovered";
+                        uiButton.pressedFgSprite = baseIconName + "Pressed";
+                        uiButton.disabledFgSprite = baseIconName + "Disabled";
                     }
+            
+                    // Store the thumbnail atlas for this building.
+                    info.m_Atlas = atlas;
+
+                    // Store the name of the thumbnail.
+                    info.m_Thumbnail = info.name + "Icon";
                 }
 
                 if (tooltipTexture != null)
@@ -226,7 +227,12 @@ namespace AssetIcons
                     // This is actually the transition thumbnail, we set it to the default to blank
                     // out the tooltip during transitions, which matches the behaviour of the
                     // existing icons.
-                    info.m_InfoTooltipThumbnail = "ThumbnailBuildingDefault";
+                    info.m_InfoTooltipThumbnail = "";
+
+                    if (uiButton != null)
+                    {
+                        uiButton.tooltip = info.GetLocalizedTooltip();
+                    }
                 }
 
                 ++patchCount;
