@@ -64,113 +64,133 @@ namespace AssetIcons
                 Texture2D tooltipTexture = null;
                 string packageName = info.name.Split('.')[0];
 
+                // TODO: Item has a thumnail, apply color correction. Should the color corrected thumbnail be cached?
                 UIButton uiButton = null;
                 GameObject gameObject = GameObject.Find(info.name);
                 if (gameObject != null)
                 {
                     uiButton = gameObject.GetComponent<UIButton>();
                 }
-
                 if (!string.IsNullOrEmpty(info.m_Thumbnail))
                 {
                     // This item has a thumbnail, check if it's a generated one.
                     if (uiButton != null && uiButton.atlas != null)
                     {
-                        var focusedSpriteInfo = uiButton.atlas[uiButton.focusedFgSprite];
-                        if (focusedSpriteInfo != null && focusedSpriteInfo.texture != null)
+                        uiButton = gameObject.GetComponent<UIButton>();
+
+                        // TODO: should this be optimized as well?
+                        if (uiButton != null && uiButton.atlas != null)
                         {
-                            long nonBlueCount = 0;
-                            try
+                            var focusedSpriteInfo = uiButton.atlas[uiButton.focusedFgSprite];
+                            if (focusedSpriteInfo != null && focusedSpriteInfo.texture != null)
                             {
-                                Color32[] focusedPixels = focusedSpriteInfo.texture.GetPixels32();
-                                // The default atlas generator creates ugly dark blue focused icons
-                                // by removing everything from the red and green channel.  Detect these
-                                // by adding up the amount of red and green in the image.
-                                foreach (Color32 pixel in focusedPixels)
+                                long nonBlueCount = 0;
+                                try
                                 {
-                                    if (pixel.a > 32)
+                                    Color32[] focusedPixels = focusedSpriteInfo.texture.GetPixels32();
+                                    // The default atlas generator creates ugly dark blue focused icons
+                                    // by removing everything from the red and green channel.  Detect these
+                                    // by adding up the amount of red and green in the image.
+                                    foreach (Color32 pixel in focusedPixels)
                                     {
-                                        nonBlueCount += pixel.r + pixel.g;
+                                        if (pixel.a > 32)
+                                        {
+                                            nonBlueCount += pixel.r + pixel.g;
+                                        }
+                                    }
+                                }
+                                catch (Exception)
+                                {
+                                    Debug.Log(String.Format("Failed to patch texture for {0}, skipping.", info.name));
+                                    continue;
+                                }
+
+                                if (nonBlueCount < 10000)
+                                {
+                                    // This is a generated atlas.  Replace the focused icon by generating
+                                    // a new atlas.  Include the tooltip if there is one.
+                                    var thumbnailSpriteInfo = uiButton.atlas[uiButton.normalFgSprite];
+                                    if (thumbnailSpriteInfo != null && thumbnailSpriteInfo.texture != null)
+                                    {
+                                        thumbnailTexture = thumbnailSpriteInfo.texture;
+                                        thumbnailTexture.name = info.name + "Icon";
+                                    }
+                                    var tooltipSpriteInfo = uiButton.atlas["tooltip"];
+                                    if (tooltipSpriteInfo != null && thumbnailSpriteInfo.texture != null)
+                                    {
+                                        tooltipTexture = tooltipSpriteInfo.texture;
+                                        tooltipTexture.name = info.name;
                                     }
                                 }
                             }
-                            catch (Exception)
-                            {
-                                Debug.Log(String.Format("Failed to patch texture for {0}, skipping.", info.name));
-                                continue;
-                            }
-
-                            if (nonBlueCount < 10000)
-                            {
-                                // This is a generated atlas.  Replace the focused icon by generating
-                                // a new atlas.  Include the tooltip if there is one.
-                                var thumbnailSpriteInfo = uiButton.atlas[uiButton.normalFgSprite];
-                                if (thumbnailSpriteInfo != null && thumbnailSpriteInfo.texture != null)
-                                {
-                                    thumbnailTexture = thumbnailSpriteInfo.texture;
-                                    thumbnailTexture.name = info.name + "Icon";
-                                }
-                                var tooltipSpriteInfo = uiButton.atlas["tooltip"];
-                                if (tooltipSpriteInfo != null && thumbnailSpriteInfo.texture != null)
-                                {
-                                    tooltipTexture = tooltipSpriteInfo.texture;
-                                    tooltipTexture.name = info.name;
-                                }
-                            }
                         }
                     }
                 }
 
+                // TODO: check if thumbnail is cached, if it is assign it to info.info_mThumbnail
+                // Process steam workshop image if thumbnail not cached.
                 // Create a thumbnail based on the steam workshop image.
                 if (string.IsNullOrEmpty(info.m_Thumbnail) && thumbnails.ContainsKey(packageName))
                 {
-                    thumbnailTexture = thumbnails[packageName].Instantiate<Texture2D>();
-                    if (thumbnailTexture != null)
+                    if (!LoadTexture(packageName, ref thumbnailTexture))
                     {
-                        thumbnailTexture.wrapMode = TextureWrapMode.Clamp;
-                        thumbnailTexture.name = info.name + "Icon";
-                        if (thumbnailTexture.width > thumbnailTexture.height)
+                        // TODO: what does Instantiate do?
+                        thumbnailTexture = thumbnails[packageName].Instantiate<Texture2D>();
+                        if (thumbnailTexture != null)
                         {
-                            ScaleTexture(thumbnailTexture, THUMBNAIL_SIZE, (THUMBNAIL_SIZE * thumbnailTexture.height) / thumbnailTexture.width);
-                        }
-                        else
-                        {
-                            ScaleTexture(thumbnailTexture, (THUMBNAIL_SIZE * thumbnailTexture.width) / thumbnailTexture.height, THUMBNAIL_SIZE);
+                            thumbnailTexture.wrapMode = TextureWrapMode.Clamp;
+                            thumbnailTexture.name = info.name + "Icon";
+                            if (thumbnailTexture.width > thumbnailTexture.height)
+                            {
+                                ScaleTexture(thumbnailTexture, THUMBNAIL_SIZE, (THUMBNAIL_SIZE * thumbnailTexture.height) / thumbnailTexture.width);
+                            }
+                            else
+                            {
+                                ScaleTexture(thumbnailTexture, (THUMBNAIL_SIZE * thumbnailTexture.width) / thumbnailTexture.height, THUMBNAIL_SIZE);
+                            }
                         }
                     }
                 }
 
+                // TODO: check if tooltip thumbnail is cached, if it is assign it to info.m_InfoTooltipThumbnail
+                // Process steam workshop image if tooltip thumbnail not cached.
                 // Create a tooltip image based on the steam workshop image.
                 if (string.IsNullOrEmpty(info.m_InfoTooltipThumbnail) && tooltips.ContainsKey(packageName))
                 {
-                    tooltipTexture = tooltips[packageName].Instantiate<Texture2D>();
-                    if (tooltipTexture != null)
+                    // Note: clamp and wrap mode not set for tooltip.
+                    if (!LoadTexture(packageName, ref tooltipTexture))
                     {
-                        // The tooltip texture name must match the info name, as that's the key value that's used
-                        // (stored on UIButton.m_Tooltip, not by us).
-                        tooltipTexture.name = info.name;
+                        tooltipTexture = tooltips[packageName].Instantiate<Texture2D>();
+                        if (tooltipTexture != null)
+                        {
+                            // The tooltip texture name must match the info name, as that's the key value that's used
+                            // (stored on UIButton.m_Tooltip, not by us).
+                            tooltipTexture.name = info.name;
 
-                        // Crop and scale the tooltip to TOOLTIP_WIDTH x TOOLTIP_HEIGHT
-                        if (((float)tooltipTexture.width / (float)tooltipTexture.height) > (float)TOOLTIP_WIDTH/(float)TOOLTIP_HEIGHT)
-                        {
-                            // Picture is too wide, scale to TOOLTIP_HEIGHT pixels tall and then crop out the middle
-                            ScaleTexture(tooltipTexture, (TOOLTIP_HEIGHT * tooltipTexture.width) / tooltipTexture.height, TOOLTIP_HEIGHT);
-                            CropTexture(tooltipTexture, (tooltipTexture.width - TOOLTIP_WIDTH) / 2, 0, TOOLTIP_WIDTH, TOOLTIP_HEIGHT);
-                        }
-                        else if (((float)tooltipTexture.width / (float)tooltipTexture.height) < (float)TOOLTIP_WIDTH/(float)TOOLTIP_HEIGHT)
-                        {
-                            // Picture is too tall, scale to TOOLTIP_WIDTH pixels wide and then crop out the middle
-                            ScaleTexture(tooltipTexture, TOOLTIP_WIDTH, (TOOLTIP_WIDTH * tooltipTexture.height) / tooltipTexture.width);
-                            CropTexture(tooltipTexture, 0, (tooltipTexture.height - TOOLTIP_HEIGHT) / 2, TOOLTIP_WIDTH, TOOLTIP_HEIGHT);
-                        }
-                        else
-                        {
-                            // Picture is the right aspect ratio, just scale it
-                            ScaleTexture(tooltipTexture, TOOLTIP_WIDTH, TOOLTIP_HEIGHT);
+                            // Crop and scale the tooltip to TOOLTIP_WIDTH x TOOLTIP_HEIGHT
+                            if (((float)tooltipTexture.width / (float)tooltipTexture.height) > (float)TOOLTIP_WIDTH / (float)TOOLTIP_HEIGHT)
+                            {
+                                // Picture is too wide, scale to TOOLTIP_HEIGHT pixels tall and then crop out the middle
+                                ScaleTexture(tooltipTexture, (TOOLTIP_HEIGHT * tooltipTexture.width) / tooltipTexture.height, TOOLTIP_HEIGHT);
+                                CropTexture(tooltipTexture, (tooltipTexture.width - TOOLTIP_WIDTH) / 2, 0, TOOLTIP_WIDTH, TOOLTIP_HEIGHT);
+                            }
+                            else if (((float)tooltipTexture.width / (float)tooltipTexture.height) < (float)TOOLTIP_WIDTH / (float)TOOLTIP_HEIGHT)
+                            {
+                                // Picture is too tall, scale to TOOLTIP_WIDTH pixels wide and then crop out the middle
+                                ScaleTexture(tooltipTexture, TOOLTIP_WIDTH, (TOOLTIP_WIDTH * tooltipTexture.height) / tooltipTexture.width);
+                                CropTexture(tooltipTexture, 0, (tooltipTexture.height - TOOLTIP_HEIGHT) / 2, TOOLTIP_WIDTH, TOOLTIP_HEIGHT);
+                            }
+                            else
+                            {
+                                // Picture is the right aspect ratio, just scale it
+                                ScaleTexture(tooltipTexture, TOOLTIP_WIDTH, TOOLTIP_HEIGHT);
+                            }
                         }
                     }
                 }
 
+                // thumbnailTexture and toolTipTexture should have been fetched from cache or generated at this point.
+                // No modifications needed in this method below this line.
                 // Build these textures into an atlas.
                 Texture2D[] textures;
                 if (thumbnailTexture != null)
@@ -194,6 +214,9 @@ namespace AssetIcons
                     // Hmm, we've failed to make any textures.  Move on to the next BuildingInfo.
                     continue;
                 }
+
+
+                // Following code assigns the textures to the asset. Should have them from cache at this point.
 
                 UITextureAtlas atlas = AssetImporterThumbnails.CreateThumbnailAtlas(textures, info.name + "Atlas");
 
@@ -271,7 +294,7 @@ namespace AssetIcons
             int b = c.b * 31 / 255;
             float u = ((8f + (float)c.r) / 271) / 32 + ((float)b / 32);
             float v = 1f - ((8f + (float)c.g) / 271);
-            Color32 result =  focusedFilterTexture.GetPixelBilinear(u, v);
+            Color32 result = focusedFilterTexture.GetPixelBilinear(u, v);
             result.a = c.a;
             return result;
         }
@@ -284,6 +307,10 @@ namespace AssetIcons
             {
                 return;
             }
+
+            // TODO: check if texture variants are cached, set focused, hoevered, pressed, disabled if they are
+            // If variant textures not cached, generate them by processing base texture.
+            #region GenerateTextureVariants
             Texture2D baseTexture = thumbs[0];
             Texture2D focusedTexture = thumbs[1];
             Texture2D hoveredTexture = thumbs[2];
@@ -323,10 +350,33 @@ namespace AssetIcons
                 disabledTexture.Apply(false);
             }
             disabledTexture.name = baseTexture.name + "Disabled";
+            #endregion
+
             thumbs[1] = focusedTexture;
             thumbs[2] = hoveredTexture;
             thumbs[3] = pressedTexture;
             thumbs[4] = disabledTexture;
+
+            for (var i = 1; i <= 4; i++)
+            {
+                SaveTexture(thumbs[i]);
+            }
+        }
+
+        private static void SaveTexture(Texture2D texture)
+        {
+            // next call returns a byte array, write it to disk with filename set to texture's name
+            texture.EncodeToPNG();
+            // TODO: how do we save byte array to disk? first thing to do!
+        }
+
+        private static bool LoadTexture(string name, ref Texture2D texture)
+        {
+            // Create a Texture2D object, load image from disk and set fields.
+            // TODO: might want to return Texture2D instead of boolean, otherwise Texture2D object must be created by caller.
+            texture.wrapMode = TextureWrapMode.Clamp;
+            texture.name = name + "Icon";
+            return false;
         }
 
         delegate Color32 Filter(Color32 c);
