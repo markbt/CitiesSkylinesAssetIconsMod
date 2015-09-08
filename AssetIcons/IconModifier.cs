@@ -49,12 +49,10 @@ namespace AssetIcons
                         CustomAssetMetaData md = asset.Instantiate<CustomAssetMetaData>();
                         if (md.imageRef != null && !thumbnails.ContainsKey(package.packageName))
                         {
-                            md.imageRef.Cache();
                             thumbnails.Add(package.packageName, md.imageRef);
                         }
                         if (md.steamPreviewRef != null && !tooltips.ContainsKey(package.packageName))
                         {
-                            md.steamPreviewRef.Cache();
                             tooltips.Add(package.packageName, md.steamPreviewRef);
                         }
                         if (!timestamps.ContainsKey(package.packageName))
