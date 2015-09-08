@@ -168,10 +168,18 @@ namespace AssetIcons
                     }
                 }
 
-                // Create a thumbnail based on the steam workshop image.
-                if (string.IsNullOrEmpty(info.m_Thumbnail) && thumbnails.ContainsKey(packageName))
+                // Create a thumbnail
+                if (string.IsNullOrEmpty(info.m_Thumbnail))
                 {
-                    thumbnailTexture = thumbnails[packageName].Instantiate<Texture2D>();
+                    // Try loading an override image.
+                    thumbnailTexture = LoadOverride(packageName, "thumb");
+
+                    if (thumbnailTexture == null && thumbnails.ContainsKey(packageName))
+                    {
+                        // Use the steam workshop image.
+                        thumbnailTexture = thumbnails[packageName].Instantiate<Texture2D>();
+                    }
+
                     if (thumbnailTexture != null)
                     {
                         thumbnailTexture.wrapMode = TextureWrapMode.Clamp;
@@ -188,9 +196,17 @@ namespace AssetIcons
                 }
 
                 // Create a tooltip image based on the steam workshop image.
-                if (string.IsNullOrEmpty(info.m_InfoTooltipThumbnail) && tooltips.ContainsKey(packageName))
+                if (string.IsNullOrEmpty(info.m_InfoTooltipThumbnail))
                 {
-                    tooltipTexture = tooltips[packageName].Instantiate<Texture2D>();
+                    // Try loading an override image
+                    tooltipTexture = LoadOverride(packageName, "tooltip");
+
+                    if (tooltipTexture == null && tooltips.ContainsKey(packageName))
+                    {
+                        // Use the steam workshop image.
+                        tooltipTexture = tooltips[packageName].Instantiate<Texture2D>();
+                    }
+
                     if (tooltipTexture != null)
                     {
                         // The tooltip texture name must match the info name, as that's the key value that's used
@@ -381,6 +397,44 @@ namespace AssetIcons
         const int MAGIC_START = 0x46724621;
         const int MAGIC_END = 0x436f6f6c;
         const int VERSION = 1;
+
+        static Texture2D LoadOverride(string packageName, string overrideType)
+        {
+            var pngFilename = Path.Combine("IAICache", packageName + "." + overrideType + ".png");
+            var jpgFilename = Path.Combine("IAICache", packageName + "." + overrideType + ".jpg");
+            string filename;
+            if (File.Exists(pngFilename))
+            {
+                filename = pngFilename;
+            }
+            else if (File.Exists(jpgFilename))
+            {
+                filename = jpgFilename;
+            }
+            else
+            {
+                return null;
+            }
+
+            Debug.Log(String.Format("Loading override image for {0} from {1}", packageName, filename));
+
+            try
+            {
+                var stream = File.Open(filename, FileMode.Open);
+                using (var reader = new BinaryReader(stream))
+                {
+                    var bytes = reader.ReadBytes((int)stream.Length);
+                    var texture = new Texture2D(THUMBNAIL_SIZE, THUMBNAIL_SIZE, TextureFormat.ARGB32, false, false);
+                    texture.LoadImage(bytes);
+                    return texture;
+                }
+            }
+            catch (Exception e)
+            {
+                Debug.Log(String.Format("Failed to load {0}: {1}", filename, e));
+                return null;
+            }
+        }
 
         static bool LoadFromCache(string packageName, DateTime timestamp, ref Texture2D[] textures, ref bool haveThumbnail, ref bool haveTooltip)
         {
