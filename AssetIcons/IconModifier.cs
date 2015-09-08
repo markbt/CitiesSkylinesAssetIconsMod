@@ -424,7 +424,7 @@ namespace AssetIcons
                     {
                         var width = reader.ReadInt32();
                         var height = reader.ReadInt32();
-                        var texture = new Texture2D(width, height);
+                        var texture = new Texture2D(width, height, TextureFormat.ARGB32, false, false);
                         texture.name = reader.ReadString();
                         var byteCount = reader.ReadInt32();
                         texture.LoadImage(reader.ReadBytes(byteCount));
