@@ -46,18 +46,25 @@ namespace AssetIcons
                 {
                     if (asset.type == UserAssetType.CustomAssetMetaData)
                     {
-                        CustomAssetMetaData md = asset.Instantiate<CustomAssetMetaData>();
-                        if (md.imageRef != null && !thumbnails.ContainsKey(package.packageName))
+                        try
                         {
-                            thumbnails.Add(package.packageName, md.imageRef);
+                            CustomAssetMetaData md = asset.Instantiate<CustomAssetMetaData>();
+                            if (md.imageRef != null && !thumbnails.ContainsKey(package.packageName))
+                            {
+                                thumbnails.Add(package.packageName, md.imageRef);
+                            }
+                            if (md.steamPreviewRef != null && !tooltips.ContainsKey(package.packageName))
+                            {
+                                tooltips.Add(package.packageName, md.steamPreviewRef);
+                            }
+                            if (!timestamps.ContainsKey(package.packageName))
+                            {
+                                timestamps.Add(package.packageName, md.timeStamp);
+                            }
                         }
-                        if (md.steamPreviewRef != null && !tooltips.ContainsKey(package.packageName))
+                        catch (Exception e)
                         {
-                            tooltips.Add(package.packageName, md.steamPreviewRef);
-                        }
-                        if (!timestamps.ContainsKey(package.packageName))
-                        {
-                            timestamps.Add(package.packageName, md.timeStamp);
+                            Debug.LogException(e);
                         }
                     }
                 }
@@ -67,19 +74,34 @@ namespace AssetIcons
             int infoCount = PrefabCollection<BuildingInfo>.LoadedCount();
             for (uint infoIndex = 0; infoIndex < infoCount; ++infoIndex)
             {
-                BuildingInfo info = PrefabCollection<BuildingInfo>.GetLoaded(infoIndex);
-                PatchIcons(info, thumbnails, tooltips, timestamps);
+                try
+                {
+                    BuildingInfo info = PrefabCollection<BuildingInfo>.GetLoaded(infoIndex);
+                    PatchIcons(info, thumbnails, tooltips, timestamps);
+                }
+                catch (Exception e)
+                {
+                    Debug.LogException(e);
+                }
             }
 
             // Now go through all TreeInfos and patch their icons.
             infoCount = PrefabCollection<TreeInfo>.LoadedCount();
             for (uint infoIndex = 0; infoIndex < infoCount; ++infoIndex)
             {
-                TreeInfo info = PrefabCollection<TreeInfo>.GetLoaded(infoIndex);
-                PatchIcons(info, thumbnails, tooltips, timestamps);
+                try
+                {
+                    TreeInfo info = PrefabCollection<TreeInfo>.GetLoaded(infoIndex);
+                    PatchIcons(info, thumbnails, tooltips, timestamps);
+                }
+                catch (Exception e)
+                {
+                    Debug.LogException(e);
+                }
             }
 
             stopwatch.Stop();
+
             Debug.Log(String.Format(
                 "IconModifier: Complete.  Patched {0} icons, loading {1} from cache in {2}.",
                 patchCount,
@@ -103,6 +125,12 @@ namespace AssetIcons
             if (!timestamps.ContainsKey(packageName))
             {
                 // No chance at patching this icon.
+                return;
+            }
+
+            if (File.Exists(Path.Combine("IAICache", packageName + ".skip")))
+            {
+                Debug.Log(String.Format("Skipping {0} due to skip file", packageName));
                 return;
             }
 
